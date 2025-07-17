@@ -433,3 +433,7 @@ class PerformanceContext:
     def add_metric(self, name: str, value: float):
         """Add a custom metric to this operation"""
         _performance_monitor.record_metric(f"{self.operation_name}.{name}", value)
+
+    def get_all_stats(self) -> Dict[str, Any]:
+        """Get all performance statistics"""
+        return _performance_monitor.get_all_stats()

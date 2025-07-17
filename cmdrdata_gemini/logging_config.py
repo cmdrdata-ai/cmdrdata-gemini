@@ -128,7 +128,7 @@ class LoggingConfig:
         security_mode = self.config.get("security_mode", True)
 
         # Create root logger
-        logger = logging.getLogger("cmdrdata_openai")
+        logger = logging.getLogger("cmdrdata_gemini")
         logger.setLevel(getattr(logging, log_level))
 
         # Clear existing handlers
@@ -285,7 +285,7 @@ except Exception as e:
 
 def get_logger(name: str) -> logging.Logger:
     """Get a configured logger"""
-    return logging.getLogger(f"cmdrdata_openai.{name}")
+    return logging.getLogger(f"cmdrdata_gemini.{name}")
 
 
 # Module logger for internal logging

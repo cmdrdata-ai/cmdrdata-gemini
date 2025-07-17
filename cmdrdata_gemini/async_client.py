@@ -114,12 +114,6 @@ class AsyncTrackedGemini:
         try:
             effective_customer_id = get_effective_customer_id(customer_id)
 
-            if not effective_customer_id:
-                logger.warning(
-                    "No customer_id provided for tracking. Set customer_id parameter or use set_customer_context()"
-                )
-                return
-
             if hasattr(result, "usage_metadata") and result.usage_metadata:
                 # Clean up model name
                 clean_model = model or "unknown"
@@ -129,8 +123,12 @@ class AsyncTrackedGemini:
                 await self._tracker.track_usage_async(
                     customer_id=effective_customer_id,
                     model=clean_model,
-                    input_tokens=getattr(result.usage_metadata, "prompt_token_count", 0),
-                    output_tokens=getattr(result.usage_metadata, "candidates_token_count", 0),
+                    input_tokens=getattr(
+                        result.usage_metadata, "prompt_token_count", 0
+                    ),
+                    output_tokens=getattr(
+                        result.usage_metadata, "candidates_token_count", 0
+                    ),
                     provider="google",
                     metadata={
                         "response_id": getattr(result, "id", None),
@@ -141,7 +139,9 @@ class AsyncTrackedGemini:
                             if hasattr(result, "candidates") and result.candidates
                             else None
                         ),
-                        "total_token_count": getattr(result.usage_metadata, "total_token_count", 0),
+                        "total_token_count": getattr(
+                            result.usage_metadata, "total_token_count", 0
+                        ),
                     },
                     timestamp=datetime.utcnow(),
                 )
@@ -162,12 +162,6 @@ class AsyncTrackedGemini:
 
         try:
             effective_customer_id = get_effective_customer_id(customer_id)
-
-            if not effective_customer_id:
-                logger.warning(
-                    "No customer_id provided for tracking. Set customer_id parameter or use set_customer_context()"
-                )
-                return
 
             if hasattr(result, "total_tokens"):
                 # Clean up model name
@@ -215,7 +209,7 @@ class AsyncTrackedGemini:
         """Forward attribute setting to the underlying client"""
         if name.startswith("_") or name in [
             "api_key",
-            "base_url", 
+            "base_url",
             "timeout",
             "max_retries",
             "default_headers",
@@ -265,13 +259,14 @@ class AsyncTrackedModels:
         self._track_generate_func = track_generate_func
         self._track_count_func = track_count_func
 
-    async def generate_content(self, customer_id: Optional[str] = None, track_usage: bool = True, **kwargs):
+    async def generate_content(
+        self, customer_id: Optional[str] = None, track_usage: bool = True, **kwargs
+    ):
         """Generate content with optional usage tracking"""
         # Call the original generate_content method in a thread pool since it's sync
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
-            None, 
-            lambda: self._original_models.generate_content(**kwargs)
+            None, lambda: self._original_models.generate_content(**kwargs)
         )
 
         # Track usage if enabled
@@ -279,19 +274,19 @@ class AsyncTrackedModels:
             await self._track_generate_func(
                 result=result,
                 customer_id=customer_id,
-                model=kwargs.get("model"),
                 **kwargs,
             )
 
         return result
 
-    async def count_tokens(self, customer_id: Optional[str] = None, track_usage: bool = True, **kwargs):
+    async def count_tokens(
+        self, customer_id: Optional[str] = None, track_usage: bool = True, **kwargs
+    ):
         """Count tokens with optional usage tracking"""
         # Call the original count_tokens method in a thread pool since it's sync
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
-            None, 
-            lambda: self._original_models.count_tokens(**kwargs)
+            None, lambda: self._original_models.count_tokens(**kwargs)
         )
 
         # Track usage if enabled
@@ -299,7 +294,6 @@ class AsyncTrackedModels:
             await self._track_count_func(
                 result=result,
                 customer_id=customer_id,
-                model=kwargs.get("model"),
                 **kwargs,
             )
 

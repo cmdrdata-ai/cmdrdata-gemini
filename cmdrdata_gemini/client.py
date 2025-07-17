@@ -120,11 +120,13 @@ class TrackedGemini:
         # If tracking is enabled and this attribute should be tracked, wrap it
         if self._track_usage and self._tracker:
             # Check if this attribute or any sub-attributes should be tracked
-            relevant_track_methods = {
-                k: v
-                for k, v in GEMINI_TRACK_METHODS.items()
-                if k == name or k.startswith(f"{name}.")
-            }
+            relevant_track_methods = {}
+            for k, v in GEMINI_TRACK_METHODS.items():
+                if k == name:
+                    relevant_track_methods[k] = v
+                elif k.startswith(f"{name}."):
+                    # Strip the prefix for nested methods
+                    relevant_track_methods[k[len(name) + 1 :]] = v
 
             if relevant_track_methods:
                 wrapped_attr = TrackedProxy(attr, self._tracker, relevant_track_methods)
@@ -140,7 +142,7 @@ class TrackedGemini:
         if name.startswith("_") or name in [
             "api_key",
             "base_url",
-            "timeout", 
+            "timeout",
             "max_retries",
             "default_headers",
         ]:

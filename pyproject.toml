@@ -14,7 +14,7 @@ authors = [
 ]
 keywords = [
     "google",
-    "gemini", 
+    "gemini",
     "genai",
     "ai",
     "llm",
@@ -127,7 +127,7 @@ addopts = [
 ]
 markers = [
     "unit: Unit tests",
-    "integration: Integration tests", 
+    "integration: Integration tests",
     "slow: Slow tests",
     "network: Tests requiring network access",
 ]
@@ -160,6 +160,7 @@ precision = 2
 
 [dependency-groups]
 dev = [
+    "pre-commit>=4.2.0",
     "pytest>=8.4.1",
     "pytest-asyncio>=1.0.0",
 ]

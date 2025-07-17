@@ -91,7 +91,11 @@ def get_effective_customer_id(
         The customer ID to use for tracking, or None if not available
     """
     # Use ... as sentinel to distinguish between None explicitly passed vs not passed
-    if explicit_customer_id is not ...:
+    if explicit_customer_id is not ... and explicit_customer_id is not None:
         return explicit_customer_id
+
+    # If None was explicitly passed, return None (no tracking)
+    if explicit_customer_id is None:
+        return None
 
     return get_customer_context()

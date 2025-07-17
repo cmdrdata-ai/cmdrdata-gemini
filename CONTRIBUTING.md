@@ -14,7 +14,7 @@ Thank you for your interest in contributing to cmdrdata-openai! This guide will 
    ```bash
    # Install uv if you haven't already
    curl -LsSf https://astral.sh/uv/install.sh | sh
-   
+
    # Install project with dev dependencies
    uv pip install -e .[dev]
    ```
@@ -53,7 +53,7 @@ Example test structure:
 def test_feature_success(self):
     """Test successful feature operation"""
     # Arrange
-    # Act  
+    # Act
     # Assert
 
 def test_feature_failure(self):
@@ -105,7 +105,7 @@ uv run safety check
    ```bash
    # This runs automatically with pre-commit
    uv run black cmdrdata_openai/
-   uv run isort cmdrdata_openai/ 
+   uv run isort cmdrdata_openai/
    uv run mypy cmdrdata_openai/
    uv run pytest
    ```
@@ -138,7 +138,7 @@ We follow conventional commits:
 Examples:
 ```
 feat: add async support for usage tracking
-fix: handle network timeouts gracefully  
+fix: handle network timeouts gracefully
 docs: update README with new examples
 test: add tests for edge cases
 ```

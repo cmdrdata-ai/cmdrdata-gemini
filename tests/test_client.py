@@ -15,12 +15,11 @@ class TestTrackedGemini:
         """Test successful client initialization"""
         with patch("google.genai.Client") as mock_genai:
             mock_genai.return_value = Mock()
-            
+
             client = TrackedGemini(
-                api_key="AIza" + "A" * 35,
-                cmdrdata_api_key="tk-" + "C" * 32
+                api_key="AIza" + "A" * 35, cmdrdata_api_key="tk-" + "C" * 32
             )
-            
+
             assert client is not None
             assert client._track_usage is True
             assert client._tracker is not None
@@ -29,9 +28,9 @@ class TestTrackedGemini:
         """Test client initialization without usage tracking"""
         with patch("google.genai.Client") as mock_genai:
             mock_genai.return_value = Mock()
-            
+
             client = TrackedGemini(api_key="AIza" + "A" * 35)
-            
+
             assert client is not None
             assert client._track_usage is False
             assert client._tracker is None
@@ -40,13 +39,13 @@ class TestTrackedGemini:
         """Test client initialization with explicitly disabled tracking"""
         with patch("google.genai.Client") as mock_genai:
             mock_genai.return_value = Mock()
-            
+
             client = TrackedGemini(
                 api_key="AIza" + "A" * 35,
                 cmdrdata_api_key="tk-" + "C" * 32,
-                track_usage=False
+                track_usage=False,
             )
-            
+
             assert client is not None
             assert client._track_usage is False
 
@@ -66,30 +65,32 @@ class TestTrackedGemini:
         """Test validation of invalid cmdrdata API key"""
         with patch("google.genai.Client") as mock_genai:
             mock_genai.return_value = Mock()
-            
+
             with pytest.raises(ValidationError, match="Invalid cmdrdata API key"):
-                TrackedGemini(
-                    api_key="AIza" + "A" * 35,
-                    cmdrdata_api_key="invalid-key"
-                )
+                TrackedGemini(api_key="AIza" + "A" * 35, cmdrdata_api_key="invalid-key")
 
     def test_genai_client_failure(self):
         """Test handling of Google Gen AI client initialization failure"""
         with patch("google.genai.Client", side_effect=Exception("Client error")):
-            with pytest.raises(ConfigurationError, match="Failed to initialize Google Gen AI client"):
+            with pytest.raises(
+                ConfigurationError, match="Failed to initialize Google Gen AI client"
+            ):
                 TrackedGemini(api_key="AIza" + "A" * 35)
 
     def test_tracker_initialization_failure(self):
         """Test graceful handling of tracker initialization failure"""
         with patch("google.genai.Client") as mock_genai:
             mock_genai.return_value = Mock()
-            
-            with patch("cmdrdata_gemini.client.UsageTracker", side_effect=Exception("Tracker error")):
+
+            with patch(
+                "cmdrdata_gemini.client.UsageTracker",
+                side_effect=Exception("Tracker error"),
+            ):
                 client = TrackedGemini(
                     api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                    cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+                    cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
                 )
-                
+
                 # Should still create client but disable tracking
                 assert client is not None
                 assert client._track_usage is False
@@ -100,9 +101,9 @@ class TestTrackedGemini:
             mock_client = Mock()
             mock_client.some_attribute = "test_value"
             mock_genai.return_value = mock_client
-            
+
             client = TrackedGemini(api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-            
+
             assert client.some_attribute == "test_value"
 
     def test_tracked_models_access(self):
@@ -112,12 +113,12 @@ class TestTrackedGemini:
             mock_models = Mock()
             mock_client.models = mock_models
             mock_genai.return_value = mock_client
-            
+
             client = TrackedGemini(
                 api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
             )
-            
+
             # Should return a TrackedProxy for models
             models = client.models
             assert models is not None
@@ -127,12 +128,12 @@ class TestTrackedGemini:
         """Test getting the usage tracker instance"""
         with patch("google.genai.Client") as mock_genai:
             mock_genai.return_value = Mock()
-            
+
             client = TrackedGemini(
                 api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
             )
-            
+
             tracker = client.get_usage_tracker()
             assert tracker is not None
 
@@ -140,9 +141,9 @@ class TestTrackedGemini:
         """Test getting performance statistics"""
         with patch("google.genai.Client") as mock_genai:
             mock_genai.return_value = Mock()
-            
+
             client = TrackedGemini(api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-            
+
             stats = client.get_performance_stats()
             assert isinstance(stats, dict)
 
@@ -150,12 +151,12 @@ class TestTrackedGemini:
         """Test string representation of client"""
         with patch("google.genai.Client") as mock_genai:
             mock_genai.return_value = Mock()
-            
+
             client = TrackedGemini(
                 api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
             )
-            
+
             repr_str = repr(client)
             assert "TrackedGemini" in repr_str
             assert "enabled" in repr_str
@@ -170,37 +171,32 @@ class TestTrackedGeminiGenerateContent:
             mock_models.generate_content.return_value = mock_gemini_response
             mock_client.models = mock_models
             mock_genai.return_value = mock_client
-            
+
             client = TrackedGemini(
                 api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
             )
-            
-            with patch.object(client._tracker, 'track_usage_background') as mock_track:
+
+            with patch.object(client._tracker, "track_usage_background") as mock_track:
                 result = client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents="Hello, Gemini!"
+                    model="gemini-2.5-flash", contents="Hello, Gemini!"
                 )
-                
+
                 # Verify original API was called
                 mock_models.generate_content.assert_called_once()
-                
+
                 # Verify tracking was called
-                mock_track.assert_called_once_with(
-                    customer_id=None,  # No context set
-                    model="gemini-2.5-flash",
-                    input_tokens=15,
-                    output_tokens=25,
-                    provider="google",
-                    metadata={
-                        "response_id": "resp_123",
-                        "model_version": "001",
-                        "safety_ratings": None,
-                        "finish_reason": "STOP",
-                        "total_token_count": 40,
-                    }
-                )
-                
+                mock_track.assert_called_once()
+                call_args = mock_track.call_args[1]
+                assert call_args["customer_id"] is None  # No context set
+                assert call_args["model"] == "gemini-2.5-flash"
+                assert call_args["input_tokens"] == 15
+                assert call_args["output_tokens"] == 25
+                assert call_args["provider"] == "google"
+                assert call_args["metadata"]["response_id"] == "resp_123"
+                assert call_args["metadata"]["safety_ratings"] is None
+                assert call_args["metadata"]["finish_reason"] == "STOP"
+
                 assert result == mock_gemini_response
 
     def test_generate_content_without_tracking(self, mock_gemini_response):
@@ -211,15 +207,14 @@ class TestTrackedGeminiGenerateContent:
             mock_models.generate_content.return_value = mock_gemini_response
             mock_client.models = mock_models
             mock_genai.return_value = mock_client
-            
+
             # Client without tracking
             client = TrackedGemini(api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-            
+
             result = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents="Hello, Gemini!"
+                model="gemini-2.5-flash", contents="Hello, Gemini!"
             )
-            
+
             # Verify original API was called
             mock_models.generate_content.assert_called_once()
             assert result == mock_gemini_response
@@ -232,19 +227,19 @@ class TestTrackedGeminiGenerateContent:
             mock_models.generate_content.return_value = mock_gemini_response
             mock_client.models = mock_models
             mock_genai.return_value = mock_client
-            
+
             client = TrackedGemini(
                 api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
             )
-            
-            with patch.object(client._tracker, 'track_usage_background') as mock_track:
+
+            with patch.object(client._tracker, "track_usage_background") as mock_track:
                 result = client.models.generate_content(
                     model="gemini-2.5-flash",
                     contents="Hello, Gemini!",
-                    customer_id="customer-123"
+                    customer_id="customer-123",
                 )
-                
+
                 # Verify tracking was called with customer ID
                 mock_track.assert_called_once()
                 call_args = mock_track.call_args[1]
@@ -258,19 +253,19 @@ class TestTrackedGeminiGenerateContent:
             mock_models.generate_content.return_value = mock_gemini_response
             mock_client.models = mock_models
             mock_genai.return_value = mock_client
-            
+
             client = TrackedGemini(
                 api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
             )
-            
-            with patch.object(client._tracker, 'track_usage_background') as mock_track:
+
+            with patch.object(client._tracker, "track_usage_background") as mock_track:
                 result = client.models.generate_content(
                     model="gemini-2.5-flash",
                     contents="Hello, Gemini!",
-                    track_usage=False
+                    track_usage=False,
                 )
-                
+
                 # Verify tracking was not called
                 mock_track.assert_not_called()
 
@@ -282,19 +277,22 @@ class TestTrackedGeminiGenerateContent:
             mock_models.generate_content.return_value = mock_gemini_response
             mock_client.models = mock_models
             mock_genai.return_value = mock_client
-            
+
             client = TrackedGemini(
                 api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
             )
-            
-            with patch.object(client._tracker, 'track_usage_background', side_effect=Exception("Tracking failed")):
+
+            with patch.object(
+                client._tracker,
+                "track_usage_background",
+                side_effect=Exception("Tracking failed"),
+            ):
                 # Should not raise exception
                 result = client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents="Hello, Gemini!"
+                    model="gemini-2.5-flash", contents="Hello, Gemini!"
                 )
-                
+
                 assert result == mock_gemini_response
 
     def test_count_tokens_with_tracking_success(self, mock_count_tokens_response):
@@ -305,34 +303,31 @@ class TestTrackedGeminiGenerateContent:
             mock_models.count_tokens.return_value = mock_count_tokens_response
             mock_client.models = mock_models
             mock_genai.return_value = mock_client
-            
+
             client = TrackedGemini(
                 api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
             )
-            
-            with patch.object(client._tracker, 'track_usage_background') as mock_track:
+
+            with patch.object(client._tracker, "track_usage_background") as mock_track:
                 result = client.models.count_tokens(
-                    model="gemini-2.5-flash",
-                    contents="Hello, Gemini!"
+                    model="gemini-2.5-flash", contents="Hello, Gemini!"
                 )
-                
+
                 # Verify original API was called
                 mock_models.count_tokens.assert_called_once()
-                
+
                 # Verify tracking was called
-                mock_track.assert_called_once_with(
-                    customer_id=None,  # No context set
-                    model="gemini-2.5-flash",
-                    input_tokens=15,
-                    output_tokens=0,  # No generation for count_tokens
-                    provider="google",
-                    metadata={
-                        "operation": "count_tokens",
-                        "total_tokens": 15,
-                    }
-                )
-                
+                mock_track.assert_called_once()
+                call_args = mock_track.call_args[1]
+                assert call_args["customer_id"] is None  # No context set
+                assert call_args["model"] == "gemini-2.5-flash"
+                assert call_args["input_tokens"] == 15
+                assert call_args["output_tokens"] == 0  # No generation for count_tokens
+                assert call_args["provider"] == "google"
+                assert call_args["metadata"]["operation"] == "count_tokens"
+                assert call_args["metadata"]["total_tokens"] == 15
+
                 assert result == mock_count_tokens_response
 
 
@@ -344,18 +339,18 @@ def mock_gemini_response():
     response.model_version = "001"
     response.safety_ratings = None
     response.text = "Hello! How can I help you today?"
-    
+
     # Mock candidates
     candidate = Mock()
     candidate.finish_reason = "STOP"
     response.candidates = [candidate]
-    
+
     # Mock usage metadata
     response.usage_metadata = Mock()
     response.usage_metadata.prompt_token_count = 15
     response.usage_metadata.candidates_token_count = 25
     response.usage_metadata.total_token_count = 40
-    
+
     return response
 
 
@@ -364,5 +359,5 @@ def mock_count_tokens_response():
     """Mock Google Gen AI count_tokens response"""
     response = Mock()
     response.total_tokens = 15
-    
+
     return response

@@ -46,8 +46,16 @@ class VersionCompatibility:
         "min": "0.1.0",
         "max": "1.0.0",  # Updated for latest versions
         "tested": [
-            "0.1.0", "0.3.0", "0.5.0", "0.7.0", "0.8.0", 
-            "0.9.0", "0.10.0", "0.11.0", "0.12.0", "0.13.0"
+            "0.1.0",
+            "0.3.0",
+            "0.5.0",
+            "0.7.0",
+            "0.8.0",
+            "0.9.0",
+            "0.10.0",
+            "0.11.0",
+            "0.12.0",
+            "0.13.0",
         ],
         "latest_tested": "0.13.0",
     }
@@ -96,7 +104,10 @@ class VersionCompatibility:
                 stacklevel=3,
             )
         # Only warn for significantly older untested versions, not newer ones
-        elif current < version.parse("0.8.0") and str(current) not in self.SUPPORTED_GENAI_VERSIONS["tested"]:
+        elif (
+            current < version.parse("0.8.0")
+            and str(current) not in self.SUPPORTED_GENAI_VERSIONS["tested"]
+        ):
             warnings.warn(
                 f"cmdrdata-gemini: Google Gen AI SDK version {self.genai_version} has not been fully tested. "
                 f"Latest tested version: {self.SUPPORTED_GENAI_VERSIONS['latest_tested']}. "

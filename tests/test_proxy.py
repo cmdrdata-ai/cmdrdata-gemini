@@ -7,7 +7,12 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from cmdrdata_gemini.proxy import GEMINI_TRACK_METHODS, TrackedProxy, track_generate_content, track_count_tokens
+from cmdrdata_gemini.proxy import (
+    GEMINI_TRACK_METHODS,
+    TrackedProxy,
+    track_count_tokens,
+    track_generate_content,
+)
 
 
 class TestTrackedProxy:
@@ -16,9 +21,9 @@ class TestTrackedProxy:
         mock_client = Mock()
         mock_client.some_attr = "test_value"
         mock_tracker = Mock()
-        
+
         proxy = TrackedProxy(mock_client, mock_tracker, {})
-        
+
         assert proxy.some_attr == "test_value"
 
     def test_proxy_forwards_method_calls(self):
@@ -26,9 +31,9 @@ class TestTrackedProxy:
         mock_client = Mock()
         mock_client.some_method.return_value = "result"
         mock_tracker = Mock()
-        
+
         proxy = TrackedProxy(mock_client, mock_tracker, {})
-        
+
         result = proxy.some_method("arg1", kwarg="value")
         assert result == "result"
         mock_client.some_method.assert_called_once_with("arg1", kwarg="value")
@@ -39,15 +44,15 @@ class TestTrackedProxy:
         mock_client.tracked_method.return_value = "result"
         mock_tracker = Mock()
         mock_track_func = Mock()
-        
+
         track_methods = {"tracked_method": mock_track_func}
         proxy = TrackedProxy(mock_client, mock_tracker, track_methods)
-        
+
         result = proxy.tracked_method("arg1", kwarg="value")
-        
+
         # Verify original method was called
         mock_client.tracked_method.assert_called_once_with("arg1", kwarg="value")
-        
+
         # Verify tracking function was called
         mock_track_func.assert_called_once()
         assert result == "result"
@@ -60,20 +65,20 @@ class TestTrackedProxy:
         mock_client.models = mock_models
         mock_tracker = Mock()
         mock_track_func = Mock()
-        
+
         track_methods = {"models.generate_content": mock_track_func}
         proxy = TrackedProxy(mock_client, mock_tracker, track_methods)
-        
+
         # Access nested attribute
         models_proxy = proxy.models
         assert models_proxy is not None
-        
+
         # Call the nested method
         result = models_proxy.generate_content("arg1", kwarg="value")
-        
+
         # Verify original method was called
         mock_models.generate_content.assert_called_once_with("arg1", kwarg="value")
-        
+
         # Verify tracking function was called
         mock_track_func.assert_called_once()
         assert result == "result"
@@ -84,15 +89,15 @@ class TestTrackedProxy:
         mock_client.tracked_method.return_value = "result"
         mock_tracker = Mock()
         mock_track_func = Mock()
-        
+
         track_methods = {"tracked_method": mock_track_func}
         proxy = TrackedProxy(mock_client, mock_tracker, track_methods)
-        
+
         result = proxy.tracked_method("arg1", customer_id="customer-123", kwarg="value")
-        
+
         # Verify customer_id was removed from kwargs before calling original method
         mock_client.tracked_method.assert_called_once_with("arg1", kwarg="value")
-        
+
         # Verify tracking function received customer_id
         mock_track_func.assert_called_once()
         call_kwargs = mock_track_func.call_args[1]
@@ -104,15 +109,15 @@ class TestTrackedProxy:
         mock_client.tracked_method.return_value = "result"
         mock_tracker = Mock()
         mock_track_func = Mock()
-        
+
         track_methods = {"tracked_method": mock_track_func}
         proxy = TrackedProxy(mock_client, mock_tracker, track_methods)
-        
+
         result = proxy.tracked_method("arg1", track_usage=False, kwarg="value")
-        
+
         # Verify original method was called
         mock_client.tracked_method.assert_called_once_with("arg1", kwarg="value")
-        
+
         # Verify tracking function was NOT called
         mock_track_func.assert_not_called()
 
@@ -122,13 +127,13 @@ class TestTrackedProxy:
         mock_client.tracked_method.return_value = "result"
         mock_tracker = Mock()
         mock_track_func = Mock(side_effect=Exception("Tracking failed"))
-        
+
         track_methods = {"tracked_method": mock_track_func}
         proxy = TrackedProxy(mock_client, mock_tracker, track_methods)
-        
+
         # Should not raise exception
         result = proxy.tracked_method("arg1", kwarg="value")
-        
+
         # Verify original method was called and result returned
         mock_client.tracked_method.assert_called_once_with("arg1", kwarg="value")
         assert result == "result"
@@ -139,21 +144,21 @@ class TestTrackedProxy:
         # Simulate an API error from the client
         api_error = Exception("API call failed")
         mock_client.tracked_method.side_effect = api_error
-        
+
         mock_tracker = Mock()
         mock_track_func = Mock()
-        
+
         track_methods = {"tracked_method": mock_track_func}
         proxy = TrackedProxy(mock_client, mock_tracker, track_methods)
-        
+
         # The proxy should re-raise the original exception
         with pytest.raises(Exception, match="API call failed"):
             proxy.tracked_method("arg1", kwarg="value")
-        
+
         # Verify that the tracking function was still called with error details
         mock_track_func.assert_called_once()
         call_kwargs = mock_track_func.call_args[1]
-        
+
         assert call_kwargs["result"] is None
         assert call_kwargs["error_occurred"] is True
         assert call_kwargs["error_type"] == "sdk_error"
@@ -166,9 +171,9 @@ class TestTrackedProxy:
         mock_client = Mock()
         del mock_client.nonexistent_attr  # Ensure it doesn't exist
         mock_tracker = Mock()
-        
+
         proxy = TrackedProxy(mock_client, mock_tracker, {})
-        
+
         with pytest.raises(AttributeError):
             _ = proxy.nonexistent_attr
 
@@ -177,9 +182,9 @@ class TestTrackedProxy:
         mock_client = Mock()
         mock_client.client_attr = "value"
         mock_tracker = Mock()
-        
+
         proxy = TrackedProxy(mock_client, mock_tracker, {})
-        
+
         dir_result = dir(proxy)
         assert "client_attr" in dir_result
 
@@ -187,9 +192,9 @@ class TestTrackedProxy:
         """Test proxy string representation"""
         mock_client = Mock()
         mock_tracker = Mock()
-        
+
         proxy = TrackedProxy(mock_client, mock_tracker, {})
-        
+
         repr_str = repr(proxy)
         assert "TrackedProxy" in repr_str
 
@@ -198,45 +203,41 @@ class TestGeminiTrackingMethods:
     def test_track_generate_content_success(self, mock_gemini_response):
         """Test successful tracking of generate_content"""
         mock_tracker = Mock()
-        
+
         track_generate_content(
             result=mock_gemini_response,
             customer_id="customer-123",
             tracker=mock_tracker,
             method_name="models.generate_content",
             args=(),
-            kwargs={"model": "gemini-2.5-flash"}
+            kwargs={"model": "gemini-2.5-flash"},
         )
-        
+
         # Verify tracking was called
-        mock_tracker.track_usage_background.assert_called_once_with(
-            customer_id="customer-123",
-            model="gemini-2.5-flash",
-            input_tokens=15,
-            output_tokens=25,
-            provider="google",
-            metadata={
-                "response_id": "resp_123",
-                "model_version": "001",
-                "safety_ratings": None,
-                "finish_reason": "STOP",
-                "total_token_count": 40,
-            }
-        )
+        mock_tracker.track_usage_background.assert_called_once()
+        call_args = mock_tracker.track_usage_background.call_args[1]
+        assert call_args["customer_id"] == "customer-123"
+        assert call_args["model"] == "gemini-2.5-flash"
+        assert call_args["input_tokens"] == 15
+        assert call_args["output_tokens"] == 25
+        assert call_args["provider"] == "google"
+        assert call_args["metadata"]["response_id"] == "resp_123"
+        assert call_args["metadata"]["finish_reason"] == "STOP"
+        assert call_args["metadata"]["safety_ratings"] is None
 
     def test_track_generate_content_model_prefix_removal(self, mock_gemini_response):
         """Test that 'models/' prefix is removed from model name"""
         mock_tracker = Mock()
-        
+
         track_generate_content(
             result=mock_gemini_response,
             customer_id="customer-123",
             tracker=mock_tracker,
             method_name="models.generate_content",
             args=(),
-            kwargs={"model": "models/gemini-2.5-flash"}
+            kwargs={"model": "models/gemini-2.5-flash"},
         )
-        
+
         # Verify model name has prefix removed
         mock_tracker.track_usage_background.assert_called_once()
         call_args = mock_tracker.track_usage_background.call_args[1]
@@ -245,35 +246,39 @@ class TestGeminiTrackingMethods:
     def test_track_generate_content_no_customer_id(self, mock_gemini_response):
         """Test tracking without customer ID"""
         mock_tracker = Mock()
-        
-        with patch("cmdrdata_gemini.proxy.get_effective_customer_id", return_value=None):
+
+        with patch(
+            "cmdrdata_gemini.proxy.get_effective_customer_id", return_value=None
+        ):
             track_generate_content(
                 result=mock_gemini_response,
                 customer_id=None,
                 tracker=mock_tracker,
                 method_name="models.generate_content",
                 args=(),
-                kwargs={}
+                kwargs={},
             )
-        
-        # Verify tracking was not called
-        mock_tracker.track_usage_background.assert_not_called()
+
+        # Verify tracking was called with customer_id=None (new behavior allows tracking without customer_id)
+        mock_tracker.track_usage_background.assert_called_once()
+        call_args = mock_tracker.track_usage_background.call_args[1]
+        assert call_args["customer_id"] is None
 
     def test_track_generate_content_no_usage_info(self):
         """Test tracking with response that has no usage info"""
         mock_response = Mock()
         del mock_response.usage_metadata  # No usage_metadata attribute
         mock_tracker = Mock()
-        
+
         track_generate_content(
             result=mock_response,
             customer_id="customer-123",
             tracker=mock_tracker,
             method_name="models.generate_content",
             args=(),
-            kwargs={}
+            kwargs={},
         )
-        
+
         # Verify tracking was not called
         mock_tracker.track_usage_background.assert_not_called()
 
@@ -282,9 +287,11 @@ class TestGeminiTrackingMethods:
         mock_response = Mock()
         # Mock response that raises exception when accessing usage_metadata
         mock_response.usage_metadata = Mock()
-        mock_response.usage_metadata.prompt_token_count = Mock(side_effect=Exception("Access error"))
+        mock_response.usage_metadata.prompt_token_count = Mock(
+            side_effect=Exception("Access error")
+        )
         mock_tracker = Mock()
-        
+
         # Should not raise exception
         track_generate_content(
             result=mock_response,
@@ -292,9 +299,9 @@ class TestGeminiTrackingMethods:
             tracker=mock_tracker,
             method_name="models.generate_content",
             args=(),
-            kwargs={}
+            kwargs={},
         )
-        
+
         # Verify tracking was not called due to error
         mock_tracker.track_usage_background.assert_not_called()
 
@@ -313,7 +320,7 @@ class TestGeminiTrackingMethods:
             kwargs={"model": "gemini-2.5-flash"},
             error_occurred=True,
             error_type="grpc_error",
-            error_code="5", # NOT_FOUND
+            error_code="5",  # NOT_FOUND
             error_message="Model not found",
             request_id="req_xyz",
             request_start_time=start_time,
@@ -339,45 +346,47 @@ class TestGeminiTrackingMethods:
     def test_track_count_tokens_success(self, mock_count_tokens_response):
         """Test successful tracking of count_tokens"""
         mock_tracker = Mock()
-        
+
         track_count_tokens(
             result=mock_count_tokens_response,
             customer_id="customer-123",
             tracker=mock_tracker,
             method_name="models.count_tokens",
             args=(),
-            kwargs={"model": "gemini-2.5-flash"}
+            kwargs={"model": "gemini-2.5-flash"},
         )
-        
+
         # Verify tracking was called
-        mock_tracker.track_usage_background.assert_called_once_with(
-            customer_id="customer-123",
-            model="gemini-2.5-flash",
-            input_tokens=15,
-            output_tokens=0,  # No generation for count_tokens
-            provider="google",
-            metadata={
-                "operation": "count_tokens",
-                "total_tokens": 15,
-            }
-        )
+        mock_tracker.track_usage_background.assert_called_once()
+        call_args = mock_tracker.track_usage_background.call_args[1]
+        assert call_args["customer_id"] == "customer-123"
+        assert call_args["model"] == "gemini-2.5-flash"
+        assert call_args["input_tokens"] == 15
+        assert call_args["output_tokens"] == 0  # No generation for count_tokens
+        assert call_args["provider"] == "google"
+        assert call_args["metadata"]["operation"] == "count_tokens"
+        assert call_args["metadata"]["total_tokens"] == 15
 
     def test_track_count_tokens_no_customer_id(self, mock_count_tokens_response):
         """Test count_tokens tracking without customer ID"""
         mock_tracker = Mock()
-        
-        with patch("cmdrdata_gemini.proxy.get_effective_customer_id", return_value=None):
+
+        with patch(
+            "cmdrdata_gemini.proxy.get_effective_customer_id", return_value=None
+        ):
             track_count_tokens(
                 result=mock_count_tokens_response,
                 customer_id=None,
                 tracker=mock_tracker,
                 method_name="models.count_tokens",
                 args=(),
-                kwargs={}
+                kwargs={},
             )
-        
-        # Verify tracking was not called
-        mock_tracker.track_usage_background.assert_not_called()
+
+        # Verify tracking was called with customer_id=None (new behavior allows tracking without customer_id)
+        mock_tracker.track_usage_background.assert_called_once()
+        call_args = mock_tracker.track_usage_background.call_args[1]
+        assert call_args["customer_id"] is None
 
     def test_gemini_track_methods_configuration(self):
         """Test that GEMINI_TRACK_METHODS is configured correctly"""
@@ -395,18 +404,18 @@ def mock_gemini_response():
     response.model_version = "001"
     response.safety_ratings = None
     response.text = "Hello! How can I help you today?"
-    
+
     # Mock candidates
     candidate = Mock()
     candidate.finish_reason = "STOP"
     response.candidates = [candidate]
-    
+
     # Mock usage metadata
     response.usage_metadata = Mock()
     response.usage_metadata.prompt_token_count = 15
     response.usage_metadata.candidates_token_count = 25
     response.usage_metadata.total_token_count = 40
-    
+
     return response
 
 
@@ -415,5 +424,5 @@ def mock_count_tokens_response():
     """Mock Google Gen AI count_tokens response"""
     response = Mock()
     response.total_tokens = 15
-    
+
     return response

@@ -148,9 +148,9 @@ class TrackedProxy:
                 end_time = time.time()
                 error_occurred = True
                 error_message = str(e)
-                
+
                 # Google's SDK uses grpc, so we inspect the exception differently
-                if hasattr(e, 'code'): # Heuristic for gRPC error
+                if hasattr(e, "code"):  # Heuristic for gRPC error
                     error_code = str(e.code())
                     error_type = "grpc_error"
                 else:
@@ -175,8 +175,10 @@ class TrackedProxy:
                             request_id=request_id,
                         )
                     except Exception as track_error:
-                        logger.warning(f"Failed to track error for {method_name}: {track_error}")
-                
+                        logger.warning(
+                            f"Failed to track error for {method_name}: {track_error}"
+                        )
+
                 raise
 
         wrapped.__name__ = getattr(method, "__name__", method_name)
@@ -194,12 +196,12 @@ class TrackedProxy:
 
 
 def track_generate_content(
-    result, 
-    customer_id, 
-    tracker, 
-    method_name, 
-    args, 
-    kwargs, 
+    result,
+    customer_id,
+    tracker,
+    method_name,
+    args,
+    kwargs,
     custom_metadata=None,
     # Enhanced tracking parameters
     request_start_time=None,
@@ -208,14 +210,11 @@ def track_generate_content(
     error_type=None,
     error_code=None,
     error_message=None,
-    request_id=None
+    request_id=None,
 ):
     """Track Google Gen AI generate_content usage"""
     try:
         effective_customer_id = get_effective_customer_id(customer_id)
-        if not effective_customer_id:
-            logger.warning("No customer_id provided for tracking.")
-            return
 
         input_tokens = 0
         output_tokens = 0
@@ -227,15 +226,20 @@ def track_generate_content(
         if result and hasattr(result, "usage_metadata"):
             input_tokens = getattr(result.usage_metadata, "prompt_token_count", 0)
             output_tokens = getattr(result.usage_metadata, "candidates_token_count", 0)
-            metadata.update({
-                "response_id": getattr(result, "id", None),
-                "safety_ratings": getattr(result, "safety_ratings", None),
-                "finish_reason": (
-                    getattr(result.candidates[0], "finish_reason", None)
-                    if hasattr(result, "candidates") and result.candidates
-                    else None
-                ),
-            })
+            metadata.update(
+                {
+                    "response_id": getattr(result, "id", None),
+                    "safety_ratings": getattr(result, "safety_ratings", None),
+                    "finish_reason": (
+                        getattr(result.candidates[0], "finish_reason", None)
+                        if hasattr(result, "candidates") and result.candidates
+                        else None
+                    ),
+                }
+            )
+        elif not error_occurred:
+            # No usage data available and no error, skip tracking
+            return
 
         if custom_metadata:
             metadata.update(custom_metadata)
@@ -261,12 +265,12 @@ def track_generate_content(
 
 
 def track_count_tokens(
-    result, 
-    customer_id, 
-    tracker, 
-    method_name, 
-    args, 
-    kwargs, 
+    result,
+    customer_id,
+    tracker,
+    method_name,
+    args,
+    kwargs,
     custom_metadata=None,
     # Enhanced tracking parameters
     request_start_time=None,
@@ -275,14 +279,11 @@ def track_count_tokens(
     error_type=None,
     error_code=None,
     error_message=None,
-    request_id=None
+    request_id=None,
 ):
     """Track Google Gen AI count_tokens usage"""
     try:
         effective_customer_id = get_effective_customer_id(customer_id)
-        if not effective_customer_id:
-            logger.warning("No customer_id provided for tracking.")
-            return
 
         input_tokens = 0
         model = kwargs.get("model", "unknown")

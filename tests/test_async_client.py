@@ -15,12 +15,12 @@ class TestAsyncTrackedGemini:
         """Test successful async client initialization"""
         with patch("google.genai.Client") as mock_genai:
             mock_genai.return_value = Mock()
-            
+
             client = AsyncTrackedGemini(
                 api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
             )
-            
+
             assert client is not None
             assert client._track_usage is True
             assert client._tracker is not None
@@ -29,9 +29,11 @@ class TestAsyncTrackedGemini:
         """Test async client initialization without usage tracking"""
         with patch("google.genai.Client") as mock_genai:
             mock_genai.return_value = Mock()
-            
-            client = AsyncTrackedGemini(api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-            
+
+            client = AsyncTrackedGemini(
+                api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+
             assert client is not None
             assert client._track_usage is False
             assert client._tracker is None
@@ -52,11 +54,11 @@ class TestAsyncTrackedGemini:
         """Test validation of invalid cmdrdata API key"""
         with patch("google.genai.Client") as mock_genai:
             mock_genai.return_value = Mock()
-            
+
             with pytest.raises(ValidationError, match="Invalid cmdrdata API key"):
                 AsyncTrackedGemini(
                     api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                    cmdrdata_api_key="invalid-key"
+                    cmdrdata_api_key="invalid-key",
                 )
 
     @pytest.mark.asyncio
@@ -67,12 +69,14 @@ class TestAsyncTrackedGemini:
             mock_client.__aenter__ = AsyncMock()
             mock_client.__aexit__ = AsyncMock()
             mock_genai.return_value = mock_client
-            
-            client = AsyncTrackedGemini(api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-            
+
+            client = AsyncTrackedGemini(
+                api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+
             async with client:
                 pass
-            
+
             mock_client.__aenter__.assert_called_once()
             mock_client.__aexit__.assert_called_once()
 
@@ -80,12 +84,12 @@ class TestAsyncTrackedGemini:
         """Test string representation of async client"""
         with patch("google.genai.Client") as mock_genai:
             mock_genai.return_value = Mock()
-            
+
             client = AsyncTrackedGemini(
                 api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
             )
-            
+
             repr_str = repr(client)
             assert "AsyncTrackedGemini" in repr_str
             assert "enabled" in repr_str
@@ -93,7 +97,9 @@ class TestAsyncTrackedGemini:
 
 class TestAsyncTrackedGeminiGenerateContent:
     @pytest.mark.asyncio
-    async def test_async_generate_content_with_tracking_success(self, mock_gemini_response):
+    async def test_async_generate_content_with_tracking_success(
+        self, mock_gemini_response
+    ):
         """Test successful async generate_content call with tracking"""
         with patch("google.genai.Client") as mock_genai:
             mock_client = Mock()
@@ -101,21 +107,22 @@ class TestAsyncTrackedGeminiGenerateContent:
             mock_models.generate_content = Mock(return_value=mock_gemini_response)
             mock_client.models = mock_models
             mock_genai.return_value = mock_client
-            
+
             client = AsyncTrackedGemini(
                 api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
             )
-            
-            with patch.object(client._tracker, 'track_usage_async', new_callable=AsyncMock) as mock_track:
+
+            with patch.object(
+                client._tracker, "track_usage_async", new_callable=AsyncMock
+            ) as mock_track:
                 result = await client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents="Hello, Gemini!"
+                    model="gemini-2.5-flash", contents="Hello, Gemini!"
                 )
-                
+
                 # Verify original API was called
                 mock_models.generate_content.assert_called_once()
-                
+
                 # Verify tracking was called
                 mock_track.assert_called_once()
                 call_args = mock_track.call_args[1]
@@ -123,7 +130,7 @@ class TestAsyncTrackedGeminiGenerateContent:
                 assert call_args["input_tokens"] == 15
                 assert call_args["output_tokens"] == 25
                 assert call_args["provider"] == "google"
-                
+
                 assert result == mock_gemini_response
 
     @pytest.mark.asyncio
@@ -135,21 +142,24 @@ class TestAsyncTrackedGeminiGenerateContent:
             mock_models.generate_content = Mock(return_value=mock_gemini_response)
             mock_client.models = mock_models
             mock_genai.return_value = mock_client
-            
+
             # Client without tracking
-            client = AsyncTrackedGemini(api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-            
-            result = await client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents="Hello, Gemini!"
+            client = AsyncTrackedGemini(
+                api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
             )
-            
+
+            result = await client.models.generate_content(
+                model="gemini-2.5-flash", contents="Hello, Gemini!"
+            )
+
             # Verify original API was called
             mock_models.generate_content.assert_called_once()
             assert result == mock_gemini_response
 
     @pytest.mark.asyncio
-    async def test_async_generate_content_with_customer_context(self, mock_gemini_response):
+    async def test_async_generate_content_with_customer_context(
+        self, mock_gemini_response
+    ):
         """Test async generate_content with customer context"""
         with patch("google.genai.Client") as mock_genai:
             mock_client = Mock()
@@ -157,19 +167,21 @@ class TestAsyncTrackedGeminiGenerateContent:
             mock_models.generate_content = Mock(return_value=mock_gemini_response)
             mock_client.models = mock_models
             mock_genai.return_value = mock_client
-            
+
             client = AsyncTrackedGemini(
                 api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
             )
-            
-            with patch.object(client._tracker, 'track_usage_async', new_callable=AsyncMock) as mock_track:
+
+            with patch.object(
+                client._tracker, "track_usage_async", new_callable=AsyncMock
+            ) as mock_track:
                 result = await client.models.generate_content(
                     model="gemini-2.5-flash",
                     contents="Hello, Gemini!",
-                    customer_id="customer-123"
+                    customer_id="customer-123",
                 )
-                
+
                 # Verify tracking was called with customer ID
                 mock_track.assert_called_once()
                 call_args = mock_track.call_args[1]
@@ -184,19 +196,21 @@ class TestAsyncTrackedGeminiGenerateContent:
             mock_models.generate_content = Mock(return_value=mock_gemini_response)
             mock_client.models = mock_models
             mock_genai.return_value = mock_client
-            
+
             client = AsyncTrackedGemini(
                 api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
             )
-            
-            with patch.object(client._tracker, 'track_usage_async', new_callable=AsyncMock) as mock_track:
+
+            with patch.object(
+                client._tracker, "track_usage_async", new_callable=AsyncMock
+            ) as mock_track:
                 result = await client.models.generate_content(
                     model="gemini-2.5-flash",
                     contents="Hello, Gemini!",
-                    track_usage=False
+                    track_usage=False,
                 )
-                
+
                 # Verify tracking was not called
                 mock_track.assert_not_called()
 
@@ -209,23 +223,29 @@ class TestAsyncTrackedGeminiGenerateContent:
             mock_models.generate_content = Mock(return_value=mock_gemini_response)
             mock_client.models = mock_models
             mock_genai.return_value = mock_client
-            
+
             client = AsyncTrackedGemini(
                 api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
             )
-            
-            with patch.object(client._tracker, 'track_usage_async', new_callable=AsyncMock, side_effect=Exception("Tracking failed")):
+
+            with patch.object(
+                client._tracker,
+                "track_usage_async",
+                new_callable=AsyncMock,
+                side_effect=Exception("Tracking failed"),
+            ):
                 # Should not raise exception
                 result = await client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents="Hello, Gemini!"
+                    model="gemini-2.5-flash", contents="Hello, Gemini!"
                 )
-                
+
                 assert result == mock_gemini_response
 
     @pytest.mark.asyncio
-    async def test_async_count_tokens_with_tracking_success(self, mock_count_tokens_response):
+    async def test_async_count_tokens_with_tracking_success(
+        self, mock_count_tokens_response
+    ):
         """Test successful async count_tokens call with tracking"""
         with patch("google.genai.Client") as mock_genai:
             mock_client = Mock()
@@ -233,21 +253,22 @@ class TestAsyncTrackedGeminiGenerateContent:
             mock_models.count_tokens = Mock(return_value=mock_count_tokens_response)
             mock_client.models = mock_models
             mock_genai.return_value = mock_client
-            
+
             client = AsyncTrackedGemini(
                 api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+                cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
             )
-            
-            with patch.object(client._tracker, 'track_usage_async', new_callable=AsyncMock) as mock_track:
+
+            with patch.object(
+                client._tracker, "track_usage_async", new_callable=AsyncMock
+            ) as mock_track:
                 result = await client.models.count_tokens(
-                    model="gemini-2.5-flash",
-                    contents="Hello, Gemini!"
+                    model="gemini-2.5-flash", contents="Hello, Gemini!"
                 )
-                
+
                 # Verify original API was called
                 mock_models.count_tokens.assert_called_once()
-                
+
                 # Verify tracking was called
                 mock_track.assert_called_once()
                 call_args = mock_track.call_args[1]
@@ -255,7 +276,7 @@ class TestAsyncTrackedGeminiGenerateContent:
                 assert call_args["input_tokens"] == 15
                 assert call_args["output_tokens"] == 0  # No generation for count_tokens
                 assert call_args["provider"] == "google"
-                
+
                 assert result == mock_count_tokens_response
 
 
@@ -267,18 +288,18 @@ def mock_gemini_response():
     response.model_version = "001"
     response.safety_ratings = None
     response.text = "Hello! How can I help you today?"
-    
+
     # Mock candidates
     candidate = Mock()
     candidate.finish_reason = "STOP"
     response.candidates = [candidate]
-    
+
     # Mock usage metadata
     response.usage_metadata = Mock()
     response.usage_metadata.prompt_token_count = 15
     response.usage_metadata.candidates_token_count = 25
     response.usage_metadata.total_token_count = 40
-    
+
     return response
 
 
@@ -287,5 +308,5 @@ def mock_count_tokens_response():
     """Mock Google Gen AI count_tokens response"""
     response = Mock()
     response.total_tokens = 15
-    
+
     return response

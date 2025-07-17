@@ -59,15 +59,15 @@ import cmdrdata_gemini
 
 async def main():
     client = cmdrdata_gemini.AsyncTrackedGemini(
-        api_key="your-gemini-key", 
+        api_key="your-gemini-key",
         cmdrdata_api_key="your-cmdrdata-key"
     )
-    
+
     response = await client.models.generate_content(
         model="gemini-2.5-flash",
         contents="Hello, Gemini!"
     )
-    
+
     print(response.text)
     # Async usage tracking included!
 ```
@@ -153,7 +153,7 @@ client = cmdrdata_gemini.TrackedGemini(
 # Tracked data (anonymized):
 {
     "customer_id": "customer-123",
-    "model": "gemini-2.5-flash", 
+    "model": "gemini-2.5-flash",
     "input_tokens": 25,
     "output_tokens": 150,
     "total_tokens": 175,
