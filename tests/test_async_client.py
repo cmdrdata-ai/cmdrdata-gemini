@@ -94,6 +94,92 @@ class TestAsyncTrackedGemini:
             assert "AsyncTrackedGemini" in repr_str
             assert "enabled" in repr_str
 
+    def test_version_compatibility_warning(self):
+        """Test version compatibility warning"""
+        with patch("google.genai.Client") as mock_genai:
+            mock_genai.return_value = Mock()
+
+            with patch(
+                "cmdrdata_gemini.async_client.check_compatibility", return_value=False
+            ):
+                with patch("cmdrdata_gemini.async_client.logger") as mock_logger:
+                    AsyncTrackedGemini(
+                        api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                    )
+                    mock_logger.warning.assert_called_once()
+
+    def test_client_initialization_failure(self):
+        """Test failure during client initialization"""
+        with patch("google.genai.Client", side_effect=Exception("Init failed")):
+            with pytest.raises(
+                ConfigurationError, match="Failed to initialize Google Gen AI client"
+            ):
+                AsyncTrackedGemini(api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+
+    def test_tracker_initialization_failure(self):
+        """Test failure during tracker initialization"""
+        with patch("google.genai.Client") as mock_genai:
+            mock_genai.return_value = Mock()
+
+            with patch(
+                "cmdrdata_gemini.async_client.UsageTracker",
+                side_effect=Exception("Tracker failed"),
+            ):
+                with patch("cmdrdata_gemini.async_client.logger") as mock_logger:
+                    client = AsyncTrackedGemini(
+                        api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                        cmdrdata_api_key="tk-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+                    )
+                    assert client._track_usage is False
+                    mock_logger.warning.assert_called_once()
+
+    def test_getattr_attribute_error(self):
+        """Test __getattr__ method with non-existent attribute"""
+        with patch("google.genai.Client") as mock_genai:
+            mock_client = Mock()
+            del mock_client.nonexistent_attr  # Ensure it doesn't exist
+            mock_genai.return_value = mock_client
+
+            client = AsyncTrackedGemini(
+                api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+
+            with pytest.raises(
+                AttributeError, match="object has no attribute 'nonexistent_attr'"
+            ):
+                getattr(client, "nonexistent_attr")
+
+    def test_setattr_original_client(self):
+        """Test __setattr__ method for setting attributes on original client"""
+        with patch("google.genai.Client") as mock_genai:
+            mock_client = Mock()
+            mock_genai.return_value = mock_client
+
+            client = AsyncTrackedGemini(
+                api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+
+            # Set a non-private attribute - should be forwarded to original client
+            client.custom_attr = "test_value"
+            assert mock_client.custom_attr == "test_value"
+
+    def test_dir_method(self):
+        """Test __dir__ method returns combined attributes"""
+        with patch("google.genai.Client") as mock_genai:
+            mock_client = Mock()
+            mock_client.__dir__ = Mock(return_value=["models", "chat", "completions"])
+            mock_genai.return_value = mock_client
+
+            client = AsyncTrackedGemini(
+                api_key="AIzaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            )
+
+            attrs = dir(client)
+            # Should include both proxy and original client attributes
+            assert isinstance(attrs, list)
+            # Check some expected attributes are present
+            assert any("models" in str(attr) for attr in attrs)
+
 
 class TestAsyncTrackedGeminiGenerateContent:
     @pytest.mark.asyncio
