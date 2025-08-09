@@ -358,9 +358,9 @@ def track_embed_content(
         tracker.track_usage_background(
             customer_id=effective_customer_id,
             model=model,
-            input_tokens=len(kwargs.get("content", "").split())
-            if kwargs.get("content")
-            else 0,  # Rough estimate
+            input_tokens=(
+                len(kwargs.get("content", "").split()) if kwargs.get("content") else 0
+            ),  # Rough estimate
             output_tokens=0,  # Embeddings don't have output tokens
             provider="google",
             metadata=metadata,
