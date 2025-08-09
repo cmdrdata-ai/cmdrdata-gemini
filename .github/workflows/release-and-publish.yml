@@ -1,0 +1,130 @@
+name: Release and Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 0.2.1)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Is this a pre-release?'
+        required: false
+        type: boolean
+        default: false
+      publish_to_pypi:
+        description: 'Publish to PyPI after release?'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ github.event.inputs.version }}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Validate version format
+      run: |
+        if ! echo "${{ github.event.inputs.version }}" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$'; then
+          echo "Invalid version format. Use semantic versioning like 1.2.3 or 1.2.3-rc1"
+          exit 1
+        fi
+
+    - name: Check if version already exists
+      run: |
+        if git tag | grep -q "^v${{ github.event.inputs.version }}$"; then
+          echo "Version v${{ github.event.inputs.version }} already exists!"
+          exit 1
+        fi
+
+    - name: Update version in pyproject.toml
+      run: |
+        sed -i 's/^version = .*/version = "${{ github.event.inputs.version }}"/' pyproject.toml
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add pyproject.toml
+        git commit -m "Bump version to ${{ github.event.inputs.version }}" || echo "No changes to commit"
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+        if [ -z "$PREV_TAG" ]; then
+          CHANGELOG="## Initial Release\n\nFirst release of cmdrdata-gemini"
+        else
+          CHANGELOG="## What's Changed\n\n"
+          CHANGELOG+=$(git log ${PREV_TAG}..HEAD --pretty=format:"* %s by @%an" | head -20)
+        fi
+
+        echo -e "$CHANGELOG" > changelog.md
+        echo "changelog_file=changelog.md" >> $GITHUB_OUTPUT
+
+    - name: Create and push tag
+      run: |
+        git tag -a "v${{ github.event.inputs.version }}" -m "Release v${{ github.event.inputs.version }}"
+        git push origin "v${{ github.event.inputs.version }}"
+        git push origin HEAD
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ github.event.inputs.version }}
+        name: Release v${{ github.event.inputs.version }}
+        body_path: ${{ steps.changelog.outputs.changelog_file }}
+        draft: false
+        prerelease: ${{ github.event.inputs.prerelease }}
+        generate_release_notes: true
+
+  build-and-publish:
+    name: Build and Publish to PyPI
+    needs: create-release
+    if: github.event.inputs.publish_to_pypi == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/cmdrdata-gemini
+    permissions:
+      id-token: write
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: v${{ needs.create-release.outputs.version }}
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+
+    - name: Install build dependencies
+      run: |
+        uv venv
+        uv pip install build twine
+
+    - name: Build package
+      run: uv run python -m build
+
+    - name: Check package
+      run: uv run twine check dist/*
+
+    - name: Publish to PyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        uv run twine upload dist/* --verbose

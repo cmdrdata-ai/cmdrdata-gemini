@@ -10,8 +10,13 @@ import pytest
 from cmdrdata_gemini.proxy import (
     GEMINI_TRACK_METHODS,
     TrackedProxy,
+    track_batch_embed_contents,
+    track_batch_generate_content,
+    track_classify_text,
     track_count_tokens,
+    track_embed_content,
     track_generate_content,
+    track_start_chat,
 )
 
 
@@ -388,12 +393,280 @@ class TestGeminiTrackingMethods:
         call_args = mock_tracker.track_usage_background.call_args[1]
         assert call_args["customer_id"] is None
 
+    def test_track_embed_content_success(self):
+        """Test successful tracking of embed_content"""
+        # Set up embedding response mock
+        mock_embed_result = Mock()
+        mock_embed_result.embedding = Mock()
+        mock_embed_result.embedding.values = [
+            0.1,
+            0.2,
+            0.3,
+            0.4,
+        ]  # 4-dimensional embedding
+
+        mock_tracker = Mock()
+
+        with patch(
+            "cmdrdata_gemini.proxy.get_effective_customer_id"
+        ) as mock_get_customer:
+            mock_get_customer.return_value = "test-customer"
+
+            track_embed_content(
+                result=mock_embed_result,
+                customer_id="test-customer",
+                tracker=mock_tracker,
+                method_name="models.embed_content",
+                args=(),
+                kwargs={
+                    "model": "text-embedding-004",
+                    "content": "Test content for embedding",
+                },
+            )
+
+            # Verify tracker was called
+            mock_tracker.track_usage_background.assert_called_once()
+            call_kwargs = mock_tracker.track_usage_background.call_args[1]
+
+            assert call_kwargs["customer_id"] == "test-customer"
+            assert call_kwargs["model"] == "text-embedding-004"
+            assert call_kwargs["input_tokens"] == 4  # Estimated from content
+            assert call_kwargs["output_tokens"] == 0
+            assert call_kwargs["provider"] == "google"
+            assert call_kwargs["metadata"]["operation"] == "embed_content"
+            assert call_kwargs["metadata"]["embedding_dimensions"] == 4
+            assert (
+                call_kwargs["metadata"]["content_length"] == 26
+            )  # len("Test content for embedding")
+
+    def test_track_batch_embed_contents_success(self):
+        """Test successful tracking of batch_embed_contents"""
+        # Set up batch embedding response mock
+        mock_batch_embed_result = Mock()
+        mock_batch_embed_result.embeddings = [
+            Mock(embedding=[0.1, 0.2, 0.3]),
+            Mock(embedding=[0.4, 0.5, 0.6]),
+            Mock(embedding=[0.7, 0.8, 0.9]),
+        ]
+
+        mock_tracker = Mock()
+
+        with patch(
+            "cmdrdata_gemini.proxy.get_effective_customer_id"
+        ) as mock_get_customer:
+            mock_get_customer.return_value = "test-customer"
+
+            track_batch_embed_contents(
+                result=mock_batch_embed_result,
+                customer_id="test-customer",
+                tracker=mock_tracker,
+                method_name="models.batch_embed_contents",
+                args=(),
+                kwargs={
+                    "model": "text-embedding-004",
+                    "requests": [
+                        {"content": "Text 1"},
+                        {"content": "Text 2"},
+                        {"content": "Text 3"},
+                    ],
+                },
+            )
+
+            # Verify tracker was called
+            mock_tracker.track_usage_background.assert_called_once()
+            call_kwargs = mock_tracker.track_usage_background.call_args[1]
+
+            assert call_kwargs["customer_id"] == "test-customer"
+            assert call_kwargs["model"] == "text-embedding-004"
+            assert call_kwargs["input_tokens"] == 4  # (6+6+6) // 4 = 18 // 4 = 4
+            assert call_kwargs["output_tokens"] == 0
+            assert call_kwargs["provider"] == "google"
+            assert call_kwargs["metadata"]["operation"] == "batch_embed_contents"
+            assert call_kwargs["metadata"]["batch_size"] == 3
+            assert call_kwargs["metadata"]["embeddings_generated"] == 3
+
+    def test_track_classify_text_success(self):
+        """Test successful tracking of classify_text"""
+        # Set up classification response mock
+        mock_classify_result = Mock()
+        mock_classify_result.categories = [Mock(name="positive", confidence=0.9)]
+        mock_classify_result.confidence = 0.9
+
+        mock_tracker = Mock()
+
+        with patch(
+            "cmdrdata_gemini.proxy.get_effective_customer_id"
+        ) as mock_get_customer:
+            mock_get_customer.return_value = "test-customer"
+
+            track_classify_text(
+                result=mock_classify_result,
+                customer_id="test-customer",
+                tracker=mock_tracker,
+                method_name="models.classify_text",
+                args=(),
+                kwargs={
+                    "model": "text-classification-004",
+                    "text": "This is a great product!",
+                },
+            )
+
+            # Verify tracker was called
+            mock_tracker.track_usage_background.assert_called_once()
+            call_kwargs = mock_tracker.track_usage_background.call_args[1]
+
+            assert call_kwargs["customer_id"] == "test-customer"
+            assert call_kwargs["model"] == "text-classification-004"
+            assert call_kwargs["input_tokens"] == 6  # int(5 words * 1.3)
+            assert call_kwargs["output_tokens"] == 0
+            assert call_kwargs["provider"] == "google"
+            assert call_kwargs["metadata"]["operation"] == "classify_text"
+            assert (
+                call_kwargs["metadata"]["text_length"] == 24
+            )  # len("This is a great product!")
+            assert call_kwargs["metadata"]["categories_count"] == 1
+            assert call_kwargs["metadata"]["confidence"] == 0.9
+
+    def test_track_batch_generate_content_success(self):
+        """Test successful tracking of batch_generate_content"""
+        # Set up batch generation response mock
+        mock_batch_result = Mock()
+        mock_batch_result.responses = [
+            Mock(usage_metadata=Mock(prompt_token_count=10, candidates_token_count=15)),
+            Mock(usage_metadata=Mock(prompt_token_count=8, candidates_token_count=12)),
+        ]
+
+        mock_tracker = Mock()
+
+        with patch(
+            "cmdrdata_gemini.proxy.get_effective_customer_id"
+        ) as mock_get_customer:
+            mock_get_customer.return_value = "test-customer"
+
+            track_batch_generate_content(
+                result=mock_batch_result,
+                customer_id="test-customer",
+                tracker=mock_tracker,
+                method_name="models.batch_generate_content",
+                args=(),
+                kwargs={
+                    "model": "gemini-2.5-flash",
+                    "requests": [{"contents": "Prompt 1"}, {"contents": "Prompt 2"}],
+                },
+            )
+
+            # Verify tracker was called
+            mock_tracker.track_usage_background.assert_called_once()
+            call_kwargs = mock_tracker.track_usage_background.call_args[1]
+
+            assert call_kwargs["customer_id"] == "test-customer"
+            assert call_kwargs["model"] == "gemini-2.5-flash"
+            assert call_kwargs["input_tokens"] == 18  # Sum of batch inputs
+            assert call_kwargs["output_tokens"] == 27  # Sum of batch outputs
+            assert call_kwargs["provider"] == "google"
+            assert call_kwargs["metadata"]["operation"] == "batch_generate_content"
+            assert call_kwargs["metadata"]["batch_size"] == 2
+            assert call_kwargs["metadata"]["total_requests"] == 2
+
+    def test_track_start_chat_success(self):
+        """Test successful tracking of start_chat"""
+        # Set up chat session mock
+        mock_chat_result = Mock()
+        mock_chat_result.model = "gemini-2.5-flash"
+        mock_chat_result.history = []
+
+        mock_tracker = Mock()
+
+        with patch(
+            "cmdrdata_gemini.proxy.get_effective_customer_id"
+        ) as mock_get_customer:
+            mock_get_customer.return_value = "test-customer"
+
+            track_start_chat(
+                result=mock_chat_result,
+                customer_id="test-customer",
+                tracker=mock_tracker,
+                method_name="models.start_chat",
+                args=(),
+                kwargs={"model": "gemini-2.5-flash", "history": []},
+            )
+
+            # Verify tracker was called
+            mock_tracker.track_usage_background.assert_called_once()
+            call_kwargs = mock_tracker.track_usage_background.call_args[1]
+
+            assert call_kwargs["customer_id"] == "test-customer"
+            assert call_kwargs["model"] == "gemini-2.5-flash"
+            assert call_kwargs["input_tokens"] == 0
+            assert call_kwargs["output_tokens"] == 0
+            assert call_kwargs["provider"] == "google"
+            assert call_kwargs["metadata"]["operation"] == "start_chat"
+            assert call_kwargs["metadata"]["initial_history_length"] == 0
+            assert call_kwargs["metadata"]["chat_model"] == "gemini-2.5-flash"
+
     def test_gemini_track_methods_configuration(self):
         """Test that GEMINI_TRACK_METHODS is configured correctly"""
-        assert "models.generate_content" in GEMINI_TRACK_METHODS
-        assert "models.count_tokens" in GEMINI_TRACK_METHODS
-        assert GEMINI_TRACK_METHODS["models.generate_content"] == track_generate_content
-        assert GEMINI_TRACK_METHODS["models.count_tokens"] == track_count_tokens
+        expected_methods = {
+            "models.generate_content": track_generate_content,
+            "models.batch_generate_content": track_batch_generate_content,
+            "models.embed_content": track_embed_content,
+            "models.batch_embed_contents": track_batch_embed_contents,
+            "models.classify_text": track_classify_text,
+            "models.start_chat": track_start_chat,
+            "models.count_tokens": track_count_tokens,
+        }
+
+        for method_name, expected_function in expected_methods.items():
+            assert method_name in GEMINI_TRACK_METHODS, f"Missing method: {method_name}"
+            assert callable(
+                GEMINI_TRACK_METHODS[method_name]
+            ), f"Method {method_name} not callable"
+            assert (
+                GEMINI_TRACK_METHODS[method_name] == expected_function
+            ), f"Wrong function for {method_name}"
+
+        # Verify we have the expected total count
+        assert (
+            len(GEMINI_TRACK_METHODS) == 7
+        ), f"Expected 7 methods, got {len(GEMINI_TRACK_METHODS)}"
+
+    def test_proxy_integration_all_methods(self):
+        """Test that all tracking methods work through proxy integration"""
+        mock_client = Mock()
+        mock_tracker = Mock()
+
+        # Set up nested mock structure for Gemini client
+        mock_client.models = Mock()
+        mock_client.models.generate_content = Mock(return_value="generate_result")
+        mock_client.models.batch_generate_content = Mock(
+            return_value="batch_generate_result"
+        )
+        mock_client.models.embed_content = Mock(return_value="embed_result")
+        mock_client.models.batch_embed_contents = Mock(
+            return_value="batch_embed_result"
+        )
+        mock_client.models.classify_text = Mock(return_value="classify_result")
+        mock_client.models.start_chat = Mock(return_value="chat_result")
+        mock_client.models.count_tokens = Mock(return_value="count_tokens_result")
+
+        proxy = TrackedProxy(
+            client=mock_client, tracker=mock_tracker, track_methods=GEMINI_TRACK_METHODS
+        )
+
+        # Test each method through proxy
+        test_cases = [
+            (lambda: proxy.models.generate_content(), "generate_result"),
+            (lambda: proxy.models.batch_generate_content(), "batch_generate_result"),
+            (lambda: proxy.models.embed_content(), "embed_result"),
+            (lambda: proxy.models.batch_embed_contents(), "batch_embed_result"),
+            (lambda: proxy.models.classify_text(), "classify_result"),
+            (lambda: proxy.models.start_chat(), "chat_result"),
+            (lambda: proxy.models.count_tokens(), "count_tokens_result"),
+        ]
+
+        for test_func, expected_result in test_cases:
+            result = test_func()
+            assert result == expected_result
 
 
 @pytest.fixture

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "cmdrdata-gemini"
 dynamic = ["version"]
-description = "Transparent usage tracking wrapper for Google Gemini API"
+description = "Customer tracking and usage-based billing for Google Gemini with arbitrary metadata support"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.9"
@@ -18,9 +18,10 @@ keywords = [
     "genai",
     "ai",
     "llm",
-    "usage-tracking",
-    "billing",
-    "analytics",
+    "customer-tracking",
+    "usage-based-billing",
+    "fine-grained-billing",
+    "metadata",
     "api-wrapper",
 ]
 classifiers = [
@@ -33,6 +34,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
@@ -161,9 +163,11 @@ precision = 2
 [dependency-groups]
 dev = [
     "black>=25.1.0",
+    "build>=1.3.0",
     "isort>=6.0.1",
     "pre-commit>=4.2.0",
     "pytest>=8.4.1",
     "pytest-asyncio>=1.0.0",
     "pytest-cov>=6.2.1",
+    "twine>=6.1.0",
 ]

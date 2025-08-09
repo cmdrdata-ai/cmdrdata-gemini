@@ -1,0 +1,179 @@
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:  # Allow manual trigger for testing
+    inputs:
+      test_pypi:
+        description: 'Upload to TestPyPI instead of PyPI'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    name: Build distribution
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+
+    - name: Install build dependencies
+      run: |
+        uv venv
+        uv pip install build twine
+
+    - name: Build package
+      run: uv run python -m build
+
+    - name: Check package
+      run: uv run twine check dist/*
+
+    - name: Store distribution packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+
+  publish-to-testpypi:
+    name: Publish to TestPyPI
+    needs: [build]
+    runs-on: ubuntu-latest
+    # Only run on manual trigger with test_pypi flag or on pre-release
+    if: |
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.test_pypi == 'true') ||
+      (github.event_name == 'release' && contains(github.event.release.tag_name, 'rc'))
+
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/cmdrdata-gemini
+
+    permissions:
+      id-token: write  # For trusted publishing
+
+    steps:
+    - name: Download distributions
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install uv and twine
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+
+    - name: Install twine
+      run: |
+        uv venv
+        uv pip install twine
+
+    - name: Debug - Check if token is set
+      run: |
+        if [ -z "${{ secrets.TEST_PYPI_API_TOKEN }}" ]; then
+          echo "ERROR: TEST_PYPI_API_TOKEN secret is not set!"
+          echo "Please add TEST_PYPI_API_TOKEN secret in GitHub repository settings"
+          exit 1
+        else
+          echo "TEST_PYPI_API_TOKEN is set (length: ${#TOKEN})"
+        fi
+      env:
+        TOKEN: ${{ secrets.TEST_PYPI_API_TOKEN }}
+
+    - name: Publish to TestPyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
+      run: |
+        uv run twine upload --repository testpypi dist/* --verbose
+
+  publish-to-pypi:
+    name: Publish to PyPI
+    needs: [build]
+    runs-on: ubuntu-latest
+    # Only run on release or manual trigger without test flag
+    if: |
+      (github.event_name == 'release' && !contains(github.event.release.tag_name, 'rc')) ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.test_pypi != 'true')
+
+    environment:
+      name: pypi
+      url: https://pypi.org/p/cmdrdata-gemini
+
+    permissions:
+      id-token: write  # For trusted publishing
+
+    steps:
+    - name: Download distributions
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install uv and twine
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+
+    - name: Install twine
+      run: |
+        uv venv
+        uv pip install twine
+
+    - name: Publish to PyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        uv run twine upload dist/*
+
+  github-release:
+    name: Sign and upload to GitHub Release
+    needs: [publish-to-pypi]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+
+    permissions:
+      contents: write  # For uploading to release
+      id-token: write  # For signing
+
+    steps:
+    - name: Download distributions
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+
+    - name: Sign distributions
+      uses: sigstore/gh-action-sigstore-python@v3.0.0
+      with:
+        inputs: >-
+          ./dist/*.tar.gz
+          ./dist/*.whl
+
+    - name: Upload to GitHub Release
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        gh release upload '${{ github.event.release.tag_name }}' dist/** --repo '${{ github.repository }}'

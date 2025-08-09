@@ -73,7 +73,7 @@ class TestUsageTracker:
         """Test initialization with default values"""
         tracker = UsageTracker(api_key=self.valid_api_key)
 
-        assert tracker.endpoint == "https://api.cmdrdata.ai/api/async/events"
+        assert tracker.endpoint == "https://api.cmdrdata.ai/api/events"
         assert tracker.timeout == 5.0
         assert tracker.max_retries == 3
 

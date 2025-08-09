@@ -37,7 +37,7 @@ class UsageTracker:
     def __init__(
         self,
         api_key: str,
-        endpoint: str = "https://api.cmdrdata.ai/api/async/events",
+        endpoint: str = "https://api.cmdrdata.ai/api/events",
         timeout: float = 5.0,
         max_retries: int = 3,
     ):

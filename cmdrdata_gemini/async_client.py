@@ -30,7 +30,7 @@ class AsyncTrackedGemini:
         self,
         api_key: Optional[str] = None,
         cmdrdata_api_key: Optional[str] = None,
-        cmdrdata_endpoint: str = "https://www.cmdrdata.ai/api/events",
+        cmdrdata_endpoint: str = "https://api.cmdrdata.ai/api/events",
         track_usage: bool = True,
         **kwargs,
     ):

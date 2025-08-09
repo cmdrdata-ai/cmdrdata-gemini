@@ -6,19 +6,99 @@
 [![Python Support](https://img.shields.io/pypi/pyversions/cmdrdata-gemini.svg)](https://pypi.org/project/cmdrdata-gemini/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Transparent usage tracking for Google Gemini API calls**
+**The standard for AI customer intelligence - track every Gemini call by customer, feature, or any dimension**
 
-cmdrdata-gemini provides drop-in replacements for Google's Gen AI Python SDK clients that automatically track usage for customer billing and analytics without requiring any changes to your existing code.
+Join hundreds of companies making customer-level AI tracking the default. One line of code to add complete visibility into your AI operations. Free during beta.
+
+## 📊 Complete AI Intelligence Layer
+
+`cmdrdata-gemini` is the missing analytics layer for your AI-powered application:
+
+### **Track Everything That Matters**
+- **Customer Intelligence** - Know exactly which customers use what features
+- **Metadata Everything** - Tag usage by feature, experiment, team, region, or any dimension
+- **Usage Patterns** - Understand how your AI is actually being used
+- **Real-time Analytics** - Instant visibility into your AI operations
+
+### **Built for Modern AI Apps**
+- **One-line integration** - Drop-in replacement for Google GenAI SDK
+- **Zero latency overhead** - Async tracking never blocks your API calls
+- **Unlimited custom fields** - Track any metadata that matters to your business
+- **Privacy first** - Your data never touches our servers (optional self-hosting)
+
+### **What You Can Track**
+- **Token usage** by customer, feature, experiment, or any dimension
+- **Model usage** patterns (Gemini 1.5 Flash, Gemini 1.5 Pro, etc.)
+- **Customer behavior** - Who uses what, when, and how much
+- **Custom metadata** - Unlimited fields for your specific needs
+- **Performance metrics** - Latency, errors, success rates by segment
+
+### 💎 Advanced Analytics with Custom Metadata
+
+Track arbitrary metadata with each API call to enable sophisticated analytics:
+
+```python
+# Example: AI-powered content generation with feature tracking
+response = client.models.generate_content(
+    model="gemini-1.5-pro",
+    contents="Write a comprehensive guide about renewable energy...",
+    customer_id="customer-123",
+    # Custom metadata for analytics
+    custom_metadata={
+        "feature": "content_generation",
+        "experiment_group": "gemini_pro_test",
+        "content_type": "technical_guide",
+        "user_segment": "enterprise",
+        "session_id": "sess_xyz789"
+    }
+)
+
+# Example: AI tutoring platform with learning analytics
+response = client.models.generate_content(
+    model="gemini-1.5-flash",
+    contents=complex_physics_problem,
+    customer_id="customer-456",
+    custom_metadata={
+        "use_case": "educational_tutoring",
+        "subject": "physics",
+        "interaction_count": 5,
+        "learning_path": "advanced_physics",
+        "engagement_score": "high"
+    }
+)
+
+# Example: Multi-modal analysis with usage patterns
+response = client.models.generate_content(
+    model="gemini-1.5-pro-vision",
+    contents=[image_data, "Analyze this image"],
+    customer_id="customer-789",
+    custom_metadata={
+        "modality": "vision_text",
+        "workflow": "image_analysis",
+        "api_version": "v2",
+        "client_platform": "web",
+        "feature_flag": "vision_enabled"
+    }
+)
+```
+
+**Intelligence Use Cases:**
+- **Feature adoption**: Track which AI features customers actually use
+- **A/B testing**: Compare model performance across experiment groups
+- **Learning analytics**: Understand educational engagement patterns
+- **Multi-modal insights**: Analyze usage across different modalities
+- **Platform optimization**: Identify performance bottlenecks by platform
+- **Product development**: Data-driven feature prioritization
 
 ## 🛡️ Production Ready
 
 **Extremely robust and reliable** - Built for production environments with:
 
-- **100% Test Coverage** - Comprehensive tests ensuring reliability
-- **Non-blocking I/O** - Fire-and-forget tracking never slows your app
-- **Zero Code Changes** - Drop-in replacement for existing Google Gen AI clients
-- **Thread-safe** - Safe for concurrent applications
-- **Error Resilient** - Your app continues even if tracking fails
+- **Resilient Tracking:** Gemini calls succeed even if tracking fails.
+- **Non-blocking I/O:** Fire-and-forget tracking never slows down your application.
+- **Automatic Retries:** Failed tracking attempts are automatically retried with exponential backoff.
+- **Thread-Safe Context:** Safely track usage across multi-threaded and async applications.
+- **Enterprise Security:** API key sanitization and input validation.
 
 ## 🚀 Quick Start
 
@@ -44,7 +124,7 @@ client = cmdrdata_gemini.TrackedGemini(
 
 # Same API as regular Google Gen AI client
 response = client.models.generate_content(
-    model="gemini-2.5-flash",
+    model="gemini-1.5-flash",
     contents="Explain how AI works"
 )
 
@@ -64,7 +144,7 @@ async def main():
     )
 
     response = await client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-1.5-flash",
         contents="Hello, Gemini!"
     )
 
@@ -82,14 +162,14 @@ from cmdrdata_gemini.context import customer_context
 # Set customer context for automatic tracking
 with customer_context("customer-123"):
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-1.5-flash",
         contents="Help me code"
     )
     # Automatically tracked for customer-123!
 
 # Or pass customer_id directly
 response = client.models.generate_content(
-    model="gemini-2.5-flash",
+    model="gemini-1.5-flash",
     contents="Hello",
     customer_id="customer-456"  # Direct customer ID
 )
@@ -117,7 +197,7 @@ clear_customer_context()
 # Optional: Set via environment variables
 export GEMINI_API_KEY="your-gemini-key"
 export CMDRDATA_API_KEY="your-cmdrdata-key"
-export CMDRDATA_ENDPOINT="https://api.cmdrdata.ai/events"  # Optional
+export CMDRDATA_ENDPOINT="https://api.cmdrdata.ai/api/events"  # Optional
 ```
 
 ```python
@@ -131,7 +211,7 @@ client = cmdrdata_gemini.TrackedGemini()
 client = cmdrdata_gemini.TrackedGemini(
     api_key="your-gemini-key",
     cmdrdata_api_key="your-cmdrdata-key",
-    cmdrdata_endpoint="https://your-custom-endpoint.com/events",
+    cmdrdata_endpoint="https://your-custom-endpoint.com/api/events",
     track_usage=True,  # Enable/disable tracking
     timeout=30,  # Custom timeout
     max_retries=3  # Custom retry logic
@@ -153,7 +233,7 @@ client = cmdrdata_gemini.TrackedGemini(
 # Tracked data (anonymized):
 {
     "customer_id": "customer-123",
-    "model": "gemini-2.5-flash",
+    "model": "gemini-1.5-flash",
     "input_tokens": 25,
     "output_tokens": 150,
     "total_tokens": 175,
@@ -197,7 +277,7 @@ print(f"Tracking healthy: {health['healthy']}")
 ```python
 # Count tokens without generating content (also tracked)
 token_count = client.models.count_tokens(
-    model="gemini-2.5-flash",
+    model="gemini-1.5-flash",
     contents="How many tokens is this?"
 )
 print(f"Token count: {token_count.total_tokens}")
@@ -208,7 +288,7 @@ print(f"Token count: {token_count.total_tokens}")
 ```python
 # Disable tracking for sensitive operations
 response = client.models.generate_content(
-    model="gemini-2.5-flash",
+    model="gemini-1.5-flash",
     contents="Private query",
     track_usage=False  # This call won't be tracked
 )
@@ -307,7 +387,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Documentation**: [https://docs.cmdrdata.ai/gemini](https://docs.cmdrdata.ai/gemini)
 - **Issues**: [GitHub Issues](https://github.com/cmdrdata-ai/cmdrdata-gemini/issues)
-- **Support**: [support@cmdrdata.ai](mailto:support@cmdrdata.ai)
+- **Support**: [spot@cmdrdata.ai](mailto:spot@cmdrdata.ai)
 
 ## 🔗 Related Projects
 
@@ -323,4 +403,4 @@ See [CHANGELOG.md](CHANGELOG.md) for a complete list of changes and version hist
 
 **Built with ❤️ by the CMDR Data team**
 
-*Making AI usage tracking effortless and transparent.*
+*Become the Google Analytics of your AI - understand everything, optimize everything.*

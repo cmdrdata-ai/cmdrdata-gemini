@@ -318,8 +318,288 @@ def track_count_tokens(
         logger.warning(f"Failed to extract usage data from count_tokens: {e}")
 
 
-# Google Gen AI tracking configuration
+def track_embed_content(
+    result,
+    customer_id,
+    tracker,
+    method_name,
+    args,
+    kwargs,
+    custom_metadata=None,
+    **tracking_params,
+):
+    """Track Gemini embeddings generation"""
+    try:
+        effective_customer_id = get_effective_customer_id(customer_id)
+        if not effective_customer_id:
+            logger.warning("No customer_id provided for embeddings tracking")
+            return
+
+        # Embeddings don't typically report token usage like text generation
+        # But we track the operation for billing and analytics
+        model = kwargs.get("model", "unknown")
+        if isinstance(model, str) and model.startswith("models/"):
+            model = model[7:]
+
+        metadata = {
+            "operation": "embed_content",
+            "content_length": len(kwargs.get("content", "")),
+        }
+
+        if result:
+            # Add embedding-specific metadata if available
+            if hasattr(result, "embedding") and hasattr(result.embedding, "values"):
+                metadata["embedding_dimensions"] = len(result.embedding.values)
+
+        if custom_metadata:
+            metadata.update(custom_metadata)
+
+        # For embeddings, we track as a custom event with estimated usage
+        tracker.track_usage_background(
+            customer_id=effective_customer_id,
+            model=model,
+            input_tokens=len(kwargs.get("content", "").split())
+            if kwargs.get("content")
+            else 0,  # Rough estimate
+            output_tokens=0,  # Embeddings don't have output tokens
+            provider="google",
+            metadata=metadata,
+            **tracking_params,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to track embeddings: {e}")
+
+
+def track_batch_embed_contents(
+    result,
+    customer_id,
+    tracker,
+    method_name,
+    args,
+    kwargs,
+    custom_metadata=None,
+    **tracking_params,
+):
+    """Track Gemini batch embeddings generation"""
+    try:
+        effective_customer_id = get_effective_customer_id(customer_id)
+        if not effective_customer_id:
+            logger.warning("No customer_id provided for batch embeddings tracking")
+            return
+
+        model = kwargs.get("model", "unknown")
+        if isinstance(model, str) and model.startswith("models/"):
+            model = model[7:]
+
+        requests = kwargs.get("requests", [])
+        content_count = len(requests)
+        total_content_length = sum(len(req.get("content", "")) for req in requests)
+
+        metadata = {
+            "operation": "batch_embed_contents",
+            "batch_size": content_count,
+            "total_content_length": total_content_length,
+        }
+
+        if result and hasattr(result, "embeddings"):
+            metadata["embeddings_generated"] = len(result.embeddings)
+
+        if custom_metadata:
+            metadata.update(custom_metadata)
+
+        # Estimate tokens based on total content
+        estimated_tokens = total_content_length // 4  # Rough approximation
+
+        tracker.track_usage_background(
+            customer_id=effective_customer_id,
+            model=model,
+            input_tokens=estimated_tokens,
+            output_tokens=0,
+            provider="google",
+            metadata=metadata,
+            **tracking_params,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to track batch embeddings: {e}")
+
+
+def track_classify_text(
+    result,
+    customer_id,
+    tracker,
+    method_name,
+    args,
+    kwargs,
+    custom_metadata=None,
+    **tracking_params,
+):
+    """Track Gemini text classification"""
+    try:
+        effective_customer_id = get_effective_customer_id(customer_id)
+        if not effective_customer_id:
+            logger.warning("No customer_id provided for text classification tracking")
+            return
+
+        model = kwargs.get("model", "unknown")
+        if isinstance(model, str) and model.startswith("models/"):
+            model = model[7:]
+
+        text_content = kwargs.get("text", "")
+        metadata = {
+            "operation": "classify_text",
+            "text_length": len(text_content),
+        }
+
+        if result:
+            # Add classification results if available
+            if hasattr(result, "categories"):
+                metadata["categories_count"] = len(result.categories)
+            if hasattr(result, "confidence"):
+                metadata["confidence"] = result.confidence
+
+        if custom_metadata:
+            metadata.update(custom_metadata)
+
+        # Estimate tokens for classification
+        estimated_tokens = len(text_content.split()) * 1.3  # Rough token estimate
+
+        tracker.track_usage_background(
+            customer_id=effective_customer_id,
+            model=model,
+            input_tokens=int(estimated_tokens),
+            output_tokens=0,  # Classification typically doesn't generate text
+            provider="google",
+            metadata=metadata,
+            **tracking_params,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to track text classification: {e}")
+
+
+def track_batch_generate_content(
+    result,
+    customer_id,
+    tracker,
+    method_name,
+    args,
+    kwargs,
+    custom_metadata=None,
+    **tracking_params,
+):
+    """Track Gemini batch content generation"""
+    try:
+        effective_customer_id = get_effective_customer_id(customer_id)
+        if not effective_customer_id:
+            logger.warning(
+                "No customer_id provided for batch content generation tracking"
+            )
+            return
+
+        model = kwargs.get("model", "unknown")
+        if isinstance(model, str) and model.startswith("models/"):
+            model = model[7:]
+
+        requests = kwargs.get("requests", [])
+        batch_size = len(requests)
+
+        # Aggregate token usage if available in results
+        total_input_tokens = 0
+        total_output_tokens = 0
+
+        if result and hasattr(result, "responses"):
+            for response in result.responses:
+                if hasattr(response, "usage_metadata"):
+                    total_input_tokens += getattr(
+                        response.usage_metadata, "prompt_token_count", 0
+                    )
+                    total_output_tokens += getattr(
+                        response.usage_metadata, "candidates_token_count", 0
+                    )
+
+        metadata = {
+            "operation": "batch_generate_content",
+            "batch_size": batch_size,
+            "total_requests": len(requests),
+        }
+
+        if custom_metadata:
+            metadata.update(custom_metadata)
+
+        tracker.track_usage_background(
+            customer_id=effective_customer_id,
+            model=model,
+            input_tokens=total_input_tokens,
+            output_tokens=total_output_tokens,
+            provider="google",
+            metadata=metadata,
+            **tracking_params,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to track batch content generation: {e}")
+
+
+def track_start_chat(
+    result,
+    customer_id,
+    tracker,
+    method_name,
+    args,
+    kwargs,
+    custom_metadata=None,
+    **tracking_params,
+):
+    """Track Gemini chat session creation"""
+    try:
+        effective_customer_id = get_effective_customer_id(customer_id)
+        if not effective_customer_id:
+            logger.warning("No customer_id provided for chat session tracking")
+            return
+
+        model = kwargs.get("model", "unknown")
+        if isinstance(model, str) and model.startswith("models/"):
+            model = model[7:]
+
+        history = kwargs.get("history", [])
+        metadata = {
+            "operation": "start_chat",
+            "initial_history_length": len(history),
+        }
+
+        if result:
+            # Track chat session ID if available
+            if hasattr(result, "model"):
+                metadata["chat_model"] = str(result.model)
+
+        if custom_metadata:
+            metadata.update(custom_metadata)
+
+        # Chat creation itself doesn't consume tokens, but we track for analytics
+        tracker.track_usage_background(
+            customer_id=effective_customer_id,
+            model=model,
+            input_tokens=0,  # Chat session creation doesn't consume tokens
+            output_tokens=0,
+            provider="google",
+            metadata=metadata,
+            **tracking_params,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to track chat session creation: {e}")
+
+
+# Google Gen AI tracking configuration - All methods that consume tokens or should be tracked
 GEMINI_TRACK_METHODS = {
+    # Text Generation
     "models.generate_content": track_generate_content,
+    # Batch Generation
+    "models.batch_generate_content": track_batch_generate_content,
+    # Embeddings
+    "models.embed_content": track_embed_content,
+    "models.batch_embed_contents": track_batch_embed_contents,
+    # Classification
+    "models.classify_text": track_classify_text,
+    # Chat Sessions
+    "models.start_chat": track_start_chat,
+    # Token Counting
     "models.count_tokens": track_count_tokens,
 }
