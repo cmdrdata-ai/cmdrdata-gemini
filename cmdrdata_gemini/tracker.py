@@ -223,6 +223,14 @@ class UsageTracker:
         provider: str = "openai",
         metadata: Optional[Dict[str, Any]] = None,
         timestamp: Optional[datetime] = None,
+        # Enhanced tracking parameters for better analytics
+        request_start_time: Optional[float] = None,
+        request_end_time: Optional[float] = None,
+        error_occurred: Optional[bool] = None,
+        error_type: Optional[str] = None,
+        error_code: Optional[str] = None,
+        error_message: Optional[str] = None,
+        request_id: Optional[str] = None,
     ) -> None:
         """
         Track usage in background thread (fire-and-forget).
@@ -239,7 +247,39 @@ class UsageTracker:
             provider: AI provider (default: openai)
             metadata: Additional metadata about the request
             timestamp: Event timestamp (defaults to now)
+            request_start_time: Request start timestamp
+            request_end_time: Request end timestamp
+            error_occurred: Whether an error occurred
+            error_type: Type of error if any
+            error_code: Error code if any
+            error_message: Error message if any
+            request_id: Unique request identifier
         """
+        # Merge the enhanced tracking parameters into metadata
+        enhanced_metadata = metadata.copy() if metadata else {}
+
+        # Add timing information if available
+        if request_start_time and request_end_time:
+            enhanced_metadata["request_duration_ms"] = int(
+                (request_end_time - request_start_time) * 1000
+            )
+            enhanced_metadata["request_start_time"] = request_start_time
+            enhanced_metadata["request_end_time"] = request_end_time
+
+        # Add error information if available
+        if error_occurred is not None:
+            enhanced_metadata["error_occurred"] = error_occurred
+        if error_type:
+            enhanced_metadata["error_type"] = error_type
+        if error_code:
+            enhanced_metadata["error_code"] = error_code
+        if error_message:
+            enhanced_metadata["error_message"] = error_message
+
+        # Add request ID for tracing
+        if request_id:
+            enhanced_metadata["request_id"] = request_id
+
         self._executor.submit(
             self.track_usage,
             customer_id,
@@ -247,7 +287,7 @@ class UsageTracker:
             input_tokens,
             output_tokens,
             provider,
-            metadata,
+            enhanced_metadata,
             timestamp,
         )
 

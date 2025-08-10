@@ -29,7 +29,7 @@ class InputValidator:
     # API key patterns
     API_KEY_PATTERNS = {
         "openai": r"^sk-[a-zA-Z0-9]{48}$",
-        "cmdrdata": r"^tk-[a-zA-Z0-9]{32,64}$",
+        "cmdrdata": r"^(tk-[a-zA-Z0-9]{32,64}|cmd-live-v\d+-[a-zA-Z0-9_-]+)$",  # Support both formats
         "generic": r"^[a-zA-Z0-9_-]{20,}$",
     }
 
